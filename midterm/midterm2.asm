@@ -1,0 +1,239 @@
+RDREC	+JSUB	CLEAN
+	LDX	#1
+	LDA	ZERO
+RDLOOP	TD	INPUT
+	JEQ	RDLOOP
+	RD	INPUT
+	COMP	SPACE
+	JEQ	RDREC1
+	COMP	ASEN
+	JEQ	RDREC2
+	STCH	BUFFER, X
+	TIX	FOUR
+	J	RDLOOP
+
+RDREC1	STX	LEN1	.13~16번 줄은 몇 번째 자리까지 입력받을 건지 LEN은 몇번쨰까지 입력받을지
+	LDA	LEN1
+	SUB	#1
+	STA	LEN1
+	STA	BUFF_I	.LEN1 = BUFF_I
+	LDA	FOUR
+	STA	STR_I	.STR_I = 4
+	SUB	LEN1
+	STA	LEN	.4-n번째까지 동작
+	LDX	BUFF_I
+	LDA	ZERO
+RDLP1	LDCH	BUFFER, X
+	JSUB	CHANGE	.숫자인지 문자인지에 따른 hex 
+	LDX	STR_I
+	STCH	STR1, X
+	STX	STR_I	.ex)3를 넣으면 a에 3를 넣고 1을 뺸 후 x에 다시 대입 3>2>1>0순으로 뒤에서 부터 넣을 수 있음
+	LDA	STR_I
+	SUB	#1
+	STA	STR_I
+	COMP	LEN	.마지막인지 
+	JEQ	RDREC
+	LDX	STR_I
+	LDA	BUFF_I
+	SUB	#1
+	STA	BUFF_I
+	LDX	BUFF_I
+	J	RDLP1
+
+RDREC2	STX	LEN2	.1번째 문자들의 길이 저장
+	LDA	LEN2
+	SUB	#1
+	STA	LEN2
+	STA	BUFF_I
+	LDA	FOUR
+	STA	STR_I
+	SUB	LEN2
+	STA	LEN	.2의 길이 저장
+	LDX	BUFF_I
+	LDA	ZERO
+RDLP2	LDCH	BUFFER, X
+	JSUB	CHANGE	.숫자인지 문자인지에 따른 hex바꾸기
+	LDX	STR_I
+	STCH	STR2, X
+	STX	STR_I	.ex)3를 넣으면 a에 3를 넣고 1을 뺸 후 x에 다시 대입 3>2>1>0순으로 뒤에서 부터 넣을 수 있음
+	LDA	STR_I
+	SUB	#1
+	STA	STR_I
+	COMP	LEN
+	JEQ	EXIT
+	LDX	STR_I
+	LDA	BUFF_I
+	SUB	#1
+	STA	BUFF_I
+	LDX	BUFF_I
+	J	RDLP2
+EXIT	+JSUB	CLEAN
+	J	READY	.연산하러 이동	
+STKPUSH	COMP	#15
+	JGT	PUSH
+	RSUB			.if empty rsub		.BUFF에 1이 있는지 확인(indirect addressing)
+LEN	WORD	0
+BUFF_I	WORD	0
+STR_I	WORD	0
+UP	LDA	LEN
+	COMP	ZERO
+	JGT	UPP
+	RSUB
+UPP	SUB	#1
+	STA	LEN
+	RSUB
+
+	.else TMP에 1을 넣고 Str1과 str2연산 진행 
+READY	LDX	FOUR
+	JSUB	STKINIT
+	LDA	TOP
+	ADD	#15	.빈 곳에 pop이 일어날 경우 주소 값이 register A에 들어가는 것을 방지
+	STA	TOP
+	JSUB	COMPARE	.STR두개 중에 제일 긴 것을 기준으로 잡기 위해
+ARITH	JSUB	POP
+	LDA	@TOP
+	COMP	ZERO	.버퍼가 비었음 -> str1과 str2끼리만 진행
+	JGT	HAVE	.버퍼 안에 숫자가 있을때
+	JEQ	EMPTY	.버퍼가 비어있을 때
+			.버퍼가 비었을때 연산
+EMPTY	LDCH	STR1, X
+	STA	TMP
+	LDCH	STR2, X
+	ADD	TMP	.A에 더한 값이 있음
+	STA	TMP	.TMP에 더한 겂을 임시 저장
+	JSUB	STKPUSH	.STACK으로 넣어주기
+	LDA	TMP
+	STCH	BUFFER, X	.버퍼에 저장
+	STX	TMP
+	LDA	TMP	.X의 값은 뒤에서 앞으로 가기 때문에 1을 빼줘야함
+	SUB	#1
+	STA	TMP
+	LDX	TMP
+	COMP	LEN
+	JEQ	SAVE
+	JGT	ARITH
+HAVE	LDA	@TOP
+	STA	TMP
+	LDA	ZERO
+	STA	@TOP
+	LDCH	STR1, X		.버퍼 안에 1이 있었음
+	ADD	TMP
+	STA	TMP
+	LDCH	STR2, X
+	ADD	TMP	.A에 더한 값
+	STA	TMP
+	JSUB	STKPUSH	.STACK으로 넣어주기
+	LDA	TMP
+	STCH	BUFFER, X	.버퍼에 저장
+	STX	TMP
+	LDA	TMP	.X의 값은 뒤에서 앞으로 가기 때문에 1을 빼줘야함
+	SUB	#1
+	STA	TMP
+	LDX	TMP
+	COMP	LEN
+	JEQ	SAVE
+	JGT	ARITH
+
+STKINIT	LDA	#STACK
+	STA	TOP
+	RSUB
+
+PUSH	SUB	#16	.16을 넘기 때문에 뺴줌
+	STA	TMP
+	LDA	#1		.stack
+	STA	@TOP
+	LDA	TOP
+	ADD	#3
+	STA	TOP
+	J	UP
+
+POP	LDA	TOP
+	SUB	#3
+	STA	TOP
+	RSUB
+TOP	RESW	1
+STACK	RESW	10
+
+SAVE	LDX	FOUR
+	LDA	ZERO			.BUFFER에 있는 것을 char로 바꿔서 str3에 넣어주기
+SAVE1	LDCH	BUFFER, X
+	JSUB	EGNAHC	.char형으로 바꿔주는 곳으로 감
+	STCH	STR3, X
+	STX	TMP
+	LDA	TMP
+	SUB	#1
+	STA	TMP
+	LDX	TMP
+	COMP	LEN
+	JEQ	WRREC
+	JGT	SAVE1
+.위의 연산이 끝나면 wrrec으로 이동
+COMPARE	LDA	LEN1	.제일 길이가 긴 str을 찾음
+	COMP	LEN2
+	JLT	MIN
+	JGT	MAX
+	JEQ	EQUALL
+MAX	LDA	FOUR.LEN1>LEN2
+	SUB	LEN1
+	STA	LEN
+	RSUB
+MIN	LDA	FOUR	.LEN1<LEN2
+	SUB	LEN2
+	STA	LEN
+	RSUB
+EQUALL	LDA	FOUR
+	SUB	LEN1
+	STA	LEN
+	RSUB
+
+WRREC	LDA	LEN
+	ADD	#1
+	STA	LEN
+	LDX	LEN	.LEN번쨰 부분까지 출력
+	LDA	ZERO
+WRLP	TD	OUTPUT	.STR3은 순서대로 출력
+	JEQ	WRLP
+	LDCH	STR3, X
+	WD	OUTPUT
+	TIX	#5
+	JEQ	FIN
+	JLT	WRLP
+
+CtoH	SUB	#55	.문자들
+	RSUB
+ItoH	SUB	#48	.48을 빼줌
+	RSUB
+CHANGE	COMP	#58
+	JLT	ItoH	.into to hex
+	J	CtoH
+HtoI	ADD	#48
+	RSUB
+HtoC	ADD	#55
+	RSUB
+EGNAHC	COMP	#10
+	JLT	HtoI
+	J	HtoC
+
+FIN	J	FIN	.끝내기
+
+CLEAN	LDA	ZERO		.버퍼 비워주기	
+	LDX	ZERO
+CLEANLP	STCH	BUFFER, X
+	TIX	#5
+	JLT	CLEANLP
+	RSUB
+
+ASEN	WORD	10	.엔터키
+SPACE	WORD	32	.띄어쓰기	
+TMP	WORD	0	
+INPUT	BYTE	0
+OUTPUT	BYTE	1
+ZERO	WORD	0
+FOUR	WORD	4	.최대 길이가 4까지 입력될 수 있다.
+THREE	WORD	3	.뒷자리부터 입력
+STR1	RESB	5	.첫번쨰에 입력받는 수 넣을 곳
+LEN1	WORD	0	.STR1의 길이	
+STR2	RESB	5	.두번째에 입력받는 수 넣을 곳
+LEN2	WORD	0	.STR2의 길이
+STR3	RESB	5	.더한 HEX넣어둘 곳
+BUFFER	RESB	5	.더하고 16을 넘을시 넣어둘 곳	

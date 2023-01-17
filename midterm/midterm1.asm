@@ -1,0 +1,348 @@
+RDSTU	LDX	ZERO	.학생 수 입력
+	LDA	ZERO
+	TD	INPUT	
+	JEQ	RDSTU
+	RD	INPUT
+	COMP	ASEN	.ENTER면 종료
+	JEQ	RLOOP	.학생들 저장 받으러 감
+	STA	STU	.학생수 저장
+	TIX	#2
+	JLT	RDSTU
+SAVE	STA	TEMP	.현재 입력받은 이름이 맨 앞인지
+	LDA	TEMP
+	COMP	#90	.대문자 일때 저장
+	JLT	INDEX
+	RSUB	
+INDEX	STX	TEMP	.현재까지의 X를 임시 저장
+	LDX	CNT	.현재 몇번째 사람인지
+	LDA	TEMP	.A <-대문자가 있는 위치
+	STCH	NAMEIDX, X .대문자가 있는 이름의 첫 글자 위치
+	LDX	TEMP
+	RSUB
+RDREC 	LDX	TMP	.해당 위치에서 NAME시작
+	LDA	CNT .몇 번쨰 학생인지 count
+	ADD	#1
+	STA	CNT
+	LDA	ZERO
+	STA	INTLEN	.INTLEN초기화
+
+RLOOP	TD	INPUT	.이름 입력받는 loop
+	JEQ	RLOOP
+	RD	INPUT
+	COMP	SPACE	.SPACE면 점수 입력받으러 가기
+	JEQ	RDSCO	.학생의 score를 입력받으러 감
+	STCH	NAME, X	.NAME에 저장
+	JSUB	SAVE
+	TIX	#50	.학생수 최대(10명)*최대글자수(5)
+	JEQ	RDSCO	.X가 6이면 RDSCO
+	LDA	LEN	.LEN = 이름의 총 길이
+	ADD	#1
+	STA	LEN
+	JLT	RLOOP
+
+RDSCO	STX	TMP	.위에서 받은 이름의 길이 임시 저장
+	LDX	CNT	.현재 몇번째 사람인지
+	LDA	LEN
+	STCH	LENTH, X.이름길이 저장
+	LDA	ZERO
+	STA	LEN	.LEN초기화
+	LDX	SCO
+RSCOL	TD	INPUT
+	JEQ	RLOOP
+	RD	INPUT
+	COMP	ASEN	.ENTER면 종료
+	JEQ	EXIT	.평균 구하기 수행
+	COMP	SPACE	.띄어쓰기면
+	JEQ	STIDX	.이름 입력받으러 
+	STCH	SCORE, X .두개 다 아니면 score 저장
+	JSUB	GRDSUM	.GRD를 나타내기 전 점수의 합산 찾기
+	LDA	INTLEN	.socre 자릿수 임시 저장
+	ADD	#1
+	STA	INTLEN
+	TIX	INT	.세자릿수보다 작을때까지만
+	JLT	RSCOL	.반복
+	JEQ	STIDX
+STIDX	STX	SCO	.전체 score길이 저장
+	LDA	SCO	
+	ADD	#1
+	STA	SCO
+	LDX	CNT
+	LDA	INTLEN
+	STCH	SCOLEN, X	.SCORE길이 저장
+	LDA	ZERO
+	STA	INTLEN	
+	LDA	SUM		.점수 십의 자릿숫자화 된 것을 저장
+	STCH	SUMG, X	.GRADE 저장
+	ADD	STUSUM
+	STA	STUSUM
+	LDA	ZERO
+	STA	SUM
+	LDA	ZERO
+	J	RDREC
+
+EXIT	STX	TEMP	.score길이 저장
+	LDX	CNT
+	LDA	TEMP
+	LDA	INTLEN
+	STCH	SCOLEN, X	.SCORE길이 저장
+	LDA	SUM		.점수 십의 자릿숫자화 된 것을 저장
+	STCH	SUMG, X	.10진수화된 수를 저장
+	ADD	STUSUM
+	STA	STUSUM
+	LDA	ZERO
+	STA	SUM
+	LDA	STU
+	SUB	#48
+	STA	STU
+	LDA	STUSUM	.학생들 전체 합산 구하기	.원래 STUSUM이었음
+	DIV	STU	.전체/학생수
+	STA	AVR	.A(평균) -> AVR넣기
+	J	GRDLOOP	.등급 저장하러 감
+	LDA	ZERO
+	LDX	ZERO
+
+GRDSUM	STA	G	.자리숫자 넣어두기
+.	STX	TEMP	.X -> TEMP
+	LDA	INTLEN	.몇 번째 자리인지
+	COMP 	#0
+	JEQ	G10
+	COMP	#1
+	JEQ	G1
+	COMP	#2	.세자릿수인 경우
+	JEQ	G100
+G10	STX	TEMP	.X의 첫번째 위치 저장
+	LDX	CNT
+	LDA	G	.10의 자리 숫자
+	SUB	#48	.char->int
+	MUL	TEN
+	ADD	SUM
+	STA	SUM
+	LDX	SCO
+	RSUB
+G1	LDA	G	.1의 자리 숫자
+	SUB	#48	.char->int
+	ADD	SUM
+	STA	SUM
+	LDX	SCO
+	RSUB
+G100	LDA	HUNDRED
+	STA	SUM
+	RSUB
+
+GRDLOOP	LDX	ZERO	.등급 산출
+GLOOP	LDCH	SUMG, X
+	COMP	#89
+	JGT	GRD1
+	COMP	#76
+	JGT	GRD2
+	COMP	#60
+	JGT	GRD3
+	COMP	#48
+	JGT	GRD4
+	J	GRD5
+	
+GRD1	LDA	#49
+	STCH	GRADE, X
+	TIX	STU
+	JLT	GLOOP
+	JEQ	FREADY
+GRD2	LDA	#50
+	STCH	GRADE, X
+	TIX	STU
+	JLT	GLOOP
+	JEQ	FREADY
+GRD3	LDA	#51
+	STCH	GRADE, X
+	TIX	STU
+	JLT	GLOOP
+	JEQ	FREADY
+GRD4	LDA	#52
+	STCH	GRADE, X
+	TIX	STU
+	JLT	GLOOP
+	JEQ	FREADY
+GRD5	LDA	#53
+	STCH	GRADE, X
+	TIX	STU
+	JLT	GLOOP
+	JEQ	FREADY
+FREADY	LDX	ZERO
+FINDL	LDA	ZERO
+	TD	INPUT	
+	JEQ	FINDL
+	RD	INPUT
+	COMP	ASEN	.ENTER면 종료
+	JEQ	RDS.비교하러 감
+	STCH	FD, X
+	TIX	MAXLEN
+	JLT	FINDL 
+RDS	STX	FD_LEN	.내가 찾고자 하는 이름의 길이	..FD_LEN에 저장 안됨
+	LDX	ZERO
+	LDA	ZERO
+FNL	LDCH	LENTH, X	.문자의 길이
+	COMP	FD_LEN	.서로의 문자열 길이끼리 비교	
+	JEQ	FIND
+	TIX	STU	.입력된 학생수까지
+	JLT	FNL
+
+SAVEX	STX	ST_I
+	LDA	ST_I
+	ADD	#1
+	STA	ST_I
+	LDX	FD_I	.FD의 위치로 복귀
+	RSUB
+FIND	STX	WD_I	.출력할때 쓸 위치
+	LDCH	NAMEIDX, X	.첫번쨰 시작 idx
+	STA	TEMP		.시작 위치 저장
+	LDX	TEMP	.문자 시작 위치를 x에 대입
+FINDS	LDCH	NAME, X
+	STA	TEMP
+	JSUB	SAVEX	.X가 서로 다르기 때문에 다른 함수에다가 저장해놔야함
+	LDCH	FD, X
+	COMP	TEMP
+	JEQ	ELOOP
+	JLT	LLOOP
+	JGT	LLOOP
+ELOOP	LDA	#0
+	STA	CHK
+	TIX	FD_LEN
+	JEQ	CHECK
+	STX	FD_I
+	LDX	ST_I	.비교중이던 이름의 위치로 복귀
+	JLT	FINDS		
+LLOOP	.다르면 바로 처음으로 돌아감
+	LDA	WD_I	.탐색했던 이름의 다음 부분부터 찾음
+	ADD	#1
+	STA	WD_I
+	LDX	WD_I
+	.STX	WD_I	
+	J	FNL
+CHECK	.문자 0->해당 name의 점수, 등급, 부호 출력하러 가기
+	.1-> 처음부터 다시 찾음
+	LDA	CHK
+	COMP	#0
+	JEQ	WRREC
+	LDX	ST_I
+	J	FINDS
+FD	RESB	6
+CHK	WORD	0
+ST_I	WORD	0	.현재 찾고 있는 위치
+FD_LEN	WORD	0	.찾고자 하는 문자열 길이
+FD_I	WORD	0	.FD의 위치
+WD_I	WORD	0
+
+WLOOP6	LDX	#0	.100만 출력하는 곳
+WLOOP5  TD	OUTPUT	.score출력
+	JEQ	WLOOP	
+	LDCH	CHUND,X	.100추ㄹ력
+	WD	OUTPUT	
+	TIX	#3
+	JLT	WLOOP5
+	JEQ	WLOOP4
+WR0	LDX	WD_I	.100인지 찾음
+	LDCH	SUMG, X
+	COMP	HUNDRED
+	JEQ	WLOOP6
+WR	LDA	WD_I
+	COMP	ZERO
+	JGT	WR1
+	LDCH	SCOLEN,X
+	STA	WLEN
+	LDX	WD_I
+	RSUB
+WR1	LDX	ZERO
+WR2	LDCH	SCOLEN, X	.맨 앞자리를 구하고
+	ADD	TEMP
+	STA	TEMP
+	TIX	WD_I
+	JLT	WR2
+	LDX	WD_I
+	LDCH	SCOLEN, X
+	ADD	TEMP
+	STA	WLEN	.뒷자리
+	LDX	TEMP	.앞자리
+	RSUB
+WRREC	LDA	ZERO
+	LDX	ZERO
+	STA	TEMP
+	STA	WLEN
+	JSUB	WR0
+WLOOP	TD	OUTPUT	.score출력
+	JEQ	WLOOP	
+	LDCH	SCORE,X
+	WD	OUTPUT	
+	TIX	WLEN	
+	JLT	WLOOP
+	JEQ	WLOOP4
+WLOOP4	TD	OUTPUT
+	JEQ	WLOOP4
+	LDA	ASEN	.엔터 출력
+	WD	OUTPUT
+WLOOP1	TD	OUTPUT	.등급 출력
+	JEQ	WLOOP1	
+	LDX	WD_I
+	LDCH	GRADE,X
+	WD	OUTPUT	
+	LDA	ASEN	.엔터 출력
+	WD	OUTPUT
+	JEQ	WLOOP2
+WLOOP2	TD	OUTPUT	.부호 출력
+	JEQ	WLOOP2	
+	LDX	WD_I
+	LDCH	SUMG,X
+	COMP	AVR
+	JLT	SMALL
+	JEQ	EQUAL
+	JGT	BIG
+
+SMALL	LDCH	CHL
+	WD	OUTPUT
+	LDA	ASEN	.엔터 출력
+	WD	OUTPUT
+	J	FIN	
+EQUAL	LDCH	CHE
+	WD	OUTPUT
+	LDA	ASEN	.엔터 출력
+	WD	OUTPUT
+	J	FIN
+BIG	LDCH	CHG
+	WD	OUTPUT
+	LDA	ASEN	.엔터 출력
+	WD	OUTPUT
+	J	FIN
+
+FIN	J	FIN
+
+WLEN	WORD	0	.문자의 길이 추출
+OUTPUT	BYTE	1
+STU	RESW	1	.학생수 저장
+NAME	RESB	25	.학생들 저장, 이름이 6자리가 넘으면 
+LENTH	RESB	10	.이름 길이 저장
+NAMEIDX	RESB	10	.이름 첫글자 위치 저장
+SCOLEN	RESB	10	.숫자 길이 저장
+SCORE	RESB	10	.학생 점수
+AVR	RESW	1	.학생들 평균
+GRADE	RESB	10	.학생들 등급
+SUMG	RESB	10	.학생 총 점수 10진수화
+MAXLEN	BYTE	6	.최대 이름 입력 글자
+ZERO	WORD	0
+INPUT	BYTE	0
+ASEN	WORD	10	.ENTER인지 확인
+SPACE	WORD	32	.SPACE인지 확인
+TEMP	WORD	0	.임시 저장할 때 씀
+CNT	WORD	0	.학생수 count
+
+G	WORD	0	.점수 임시 저장
+HUNDRED	WORD	100	.100
+CHUND	BYTE	C'100'
+TEN	WORD	10	.10
+SUM	WORD	0	.각 학생의 점수 합산 임시 저장
+STUSUM	RESW	1	.전체 학생의 점수 합산
+CHE	BYTE	C'='
+CHL	BYTE	C'<'
+CHG	BYTE	C'>'
+LEN	WORD	0
+INT	BYTE	30
+INTLEN	WORD	0	.맨처음 초기화하고 숫자 길이 저장
+SCO	WORD	0	.맨처음 숫자 시작하는 위치 저장
+TMP	WORD	0	.끝나는 위치 임시 저장
